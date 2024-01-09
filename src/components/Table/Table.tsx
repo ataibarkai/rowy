@@ -20,6 +20,7 @@ import TableBody from "./TableBody";
 import FinalColumn from "./FinalColumn/FinalColumn";
 import ContextMenu from "./ContextMenu";
 import EmptyState from "@src/components/EmptyState";
+import { useMakeCopilotReadable } from "@copilotkit/react-core";
 // import BulkActions from "./BulkActions";
 
 import {
@@ -99,6 +100,15 @@ export default function Table({
   const [tableRows] = useAtom(tableRowsAtom, tableScope);
   const [tableNextPage] = useAtom(tableNextPageAtom, tableScope);
   const [tablePage, setTablePage] = useAtom(tablePageAtom, tableScope);
+
+  const tableData = JSON.stringify(
+    tableRows.map(({ _rowy_ref, ...rest }) => rest),
+    null,
+    2
+  );
+
+  console.log("Calling useMakeCopilotReadable: ", tableData);
+  useMakeCopilotReadable("Table Data: " + tableData);
 
   const updateColumn = useSetAtom(updateColumnAtom, tableScope);
 

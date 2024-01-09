@@ -56,7 +56,7 @@ export default function Providers({
             <DebugAtoms scope={projectScope} />
             <LocalizationProvider dateAdapter={AdapterDateFns}>
               <CacheProvider value={muiCache}>
-                <CopilotProvider>
+                <CopilotProvider chatApiEndpoint="http://localhost:3000/api/copilotkit/openai">
                   <CopilotSidebarUIProvider>
                     <RowyThemeProvider>
                       <ErrorBoundary FallbackComponent={ErrorFallback}>

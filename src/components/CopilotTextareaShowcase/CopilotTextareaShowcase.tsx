@@ -17,6 +17,7 @@ const CopilotTextareaShowcase: React.FC = () => {
       onChange={handleChange}
       autosuggestionsConfig={{
         textareaPurpose: "comment",
+        chatApiConfigs: {},
       }}
     />
   );
