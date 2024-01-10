@@ -20,7 +20,10 @@ import TableBody from "./TableBody";
 import FinalColumn from "./FinalColumn/FinalColumn";
 import ContextMenu from "./ContextMenu";
 import EmptyState from "@src/components/EmptyState";
-import { useMakeCopilotReadable } from "@copilotkit/react-core";
+import {
+  useMakeCopilotReadable,
+  useMakeCopilotActionable,
+} from "@copilotkit/react-core";
 // import BulkActions from "./BulkActions";
 
 import {
@@ -34,6 +37,8 @@ import {
   selectedCellAtom,
   tableSortsAtom,
   tableIdAtom,
+  bulkAddRowsAtom,
+  tableSettingsAtom,
 } from "@src/atoms/tableScope";
 import { projectScope, userSettingsAtom } from "@src/atoms/projectScope";
 import { getFieldType, getFieldProp } from "@src/components/fields";
@@ -100,14 +105,64 @@ export default function Table({
   const [tableRows] = useAtom(tableRowsAtom, tableScope);
   const [tableNextPage] = useAtom(tableNextPageAtom, tableScope);
   const [tablePage, setTablePage] = useAtom(tablePageAtom, tableScope);
+  const bulkAddRows = useSetAtom(bulkAddRowsAtom, tableScope);
+  const [tableSettings] = useAtom(tableSettingsAtom, tableScope);
+
+  // -- CopilotKit Integration --
+
+  useMakeCopilotReadable("Table Name: " + tableSettings.name);
+  let tableSchemaData: any = {};
+  if (tableSchema.columns) {
+    tableSchemaData = Object.fromEntries(
+      Object.entries(tableSchema.columns).map(([key, value]) => [
+        key,
+        value.type,
+      ])
+    );
+  }
+  useMakeCopilotReadable("Table Schema: " + JSON.stringify(tableSchemaData));
 
   const tableData = JSON.stringify(
-    tableRows.map(({ _rowy_ref, ...rest }) => rest),
-    null,
-    2
+    tableRows.map(({ _rowy_ref, ...rest }) => ({ ...rest, id: _rowy_ref.id }))
+  );
+  useMakeCopilotReadable("Table Data: " + tableData);
+
+  useMakeCopilotActionable(
+    {
+      name: "addRows",
+      description: "Add rows to the current table data",
+      argumentAnnotations: [
+        {
+          name: "rows",
+          type: "array",
+          items: {
+            type: "string",
+          },
+          description:
+            "The rows to add to the current table data. Make sure to stick to the table schema. " +
+            "Do not specify the id, it will be set automatically.",
+          required: true,
+        },
+      ],
+      implementation: async (rows: (string | object)[]) => {
+        console.log("got rows", rows);
+
+        const cleanedRows: any[] = rows.map((row) =>
+          typeof row === "string" ? JSON.parse(row) : row
+        );
+
+        console.log("bulkAddRows", cleanedRows);
+        await bulkAddRows({
+          rows: cleanedRows,
+          collection: tableSettings.collection,
+          onBatchCommit: () => {},
+        });
+      },
+    },
+    []
   );
 
-  useMakeCopilotReadable("Table Data: " + tableData);
+  // -- /CopilotKit Integration --
 
   const updateColumn = useSetAtom(updateColumnAtom, tableScope);
 
