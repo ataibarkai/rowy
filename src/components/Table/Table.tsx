@@ -145,13 +145,9 @@ export default function Table({
         },
       ],
       implementation: async (rows: (string | object)[]) => {
-        console.log("got rows", rows);
-
         const cleanedRows: any[] = rows.map((row) =>
           typeof row === "string" ? JSON.parse(row) : row
         );
-
-        console.log("bulkAddRows", cleanedRows);
         await bulkAddRows({
           rows: cleanedRows,
           collection: tableSettings.collection,
