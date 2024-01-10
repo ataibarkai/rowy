@@ -107,7 +107,6 @@ export default function Table({
     2
   );
 
-  console.log("Calling useMakeCopilotReadable: ", tableData);
   useMakeCopilotReadable("Table Data: " + tableData);
 
   const updateColumn = useSetAtom(updateColumnAtom, tableScope);
