@@ -24,6 +24,8 @@ import {
   useMakeCopilotReadable,
   useMakeCopilotActionable,
 } from "@copilotkit/react-core";
+import copy from "copy-to-clipboard";
+
 // import BulkActions from "./BulkActions";
 
 import {
@@ -153,6 +155,29 @@ export default function Table({
           collection: tableSettings.collection,
           onBatchCommit: () => {},
         });
+      },
+    },
+    []
+  );
+
+  useMakeCopilotActionable(
+    {
+      name: "copyToClipboard",
+      description: "Copy rows to the clipboard in CSV format",
+      argumentAnnotations: [
+        {
+          name: "rows",
+          type: "string",
+          description:
+            "Copy rows to the clipboard in CSV format. " +
+            "Stick to the order as given in the schema. " +
+            "Make sure to properly escape spaces etc.",
+          required: true,
+        },
+      ],
+      implementation: async (rows: string) => {
+        copy(rows);
+        console.log(rows);
       },
     },
     []
