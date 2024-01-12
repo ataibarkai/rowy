@@ -25,6 +25,7 @@ import {
   useMakeCopilotActionable,
 } from "@copilotkit/react-core";
 import copy from "copy-to-clipboard";
+import { useNavigate } from "react-router-dom";
 
 // import BulkActions from "./BulkActions";
 
@@ -42,14 +43,22 @@ import {
   bulkAddRowsAtom,
   tableSettingsAtom,
 } from "@src/atoms/tableScope";
-import { projectScope, userSettingsAtom } from "@src/atoms/projectScope";
+import {
+  projectScope,
+  userSettingsAtom,
+  createTableAtom,
+} from "@src/atoms/projectScope";
 import { getFieldType, getFieldProp } from "@src/components/fields";
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
 import { useMenuAction } from "./useMenuAction";
 import { useSaveColumnSizing } from "./useSaveColumnSizing";
 import useHotKeys from "./useHotKey";
-import type { TableRow, ColumnConfig } from "@src/types/table";
+import type { TableRow, ColumnConfig, TableSettings } from "@src/types/table";
 import useStateWithRef from "./useStateWithRef"; // testing with useStateWithRef
+import { ROUTES } from "@src/constants/routes";
+import { firebaseDbAtom } from "@src/sources/ProjectSourceFirebase";
+import { doc, writeBatch, deleteField } from "firebase/firestore";
+import { generateId } from "@src/utils/table";
 
 export const DEFAULT_ROW_HEIGHT = 41;
 export const DEFAULT_COL_WIDTH = 150;
@@ -109,6 +118,9 @@ export default function Table({
   const [tablePage, setTablePage] = useAtom(tablePageAtom, tableScope);
   const bulkAddRows = useSetAtom(bulkAddRowsAtom, tableScope);
   const [tableSettings] = useAtom(tableSettingsAtom, tableScope);
+  const navigate = useNavigate();
+  const [createTable] = useAtom(createTableAtom, projectScope);
+  const [firebaseDb] = useAtom(firebaseDbAtom, projectScope);
 
   // -- CopilotKit Integration --
 
@@ -155,6 +167,93 @@ export default function Table({
           collection: tableSettings.collection,
           onBatchCommit: () => {},
         });
+      },
+    },
+    []
+  );
+
+  useMakeCopilotActionable(
+    {
+      name: "createTable",
+      description: "Create a new table with the rows specified by the user",
+      argumentAnnotations: [
+        {
+          name: "name",
+          type: "string",
+          description: "The name of the new table",
+          required: true,
+        },
+        {
+          name: "rows",
+          type: "array",
+          items: {
+            type: "string",
+          },
+          description:
+            "The rows to add to the new table data as objects, not CSV.",
+          required: true,
+        },
+      ],
+      implementation: async (name: string, rows: (string | object)[]) => {
+        console.log("createTable", rows, name);
+        const cleanedRows: any[] = rows.map((row) =>
+          typeof row === "string" ? JSON.parse(row) : row
+        );
+
+        const tableId = name.toLowerCase().replace(/ /g, "");
+
+        const data: TableSettings = {
+          audit: false,
+          collection: name,
+          description: "",
+          details: undefined,
+          id: tableId,
+          modifiableBy: ["ADMIN"],
+          name: name,
+          readOnly: false,
+          roles: ["ADMIN"],
+          section: "",
+          tableType: "primaryCollection",
+          thumbnailURL: "",
+        };
+        const _schemaSource = tableSettings.id;
+        const _initialColumns: any = { ID: false };
+        const _schema = {};
+        const _suggestedRules = "";
+
+        // unfortunately, there seems to be a bug that prevents this call from returning
+        // so we are not awaiting it, but simply sleeping for a second
+        // (un)comment the await and setTimeout below to see the bug
+        /* await */ createTable!(data, {
+          _schemaSource,
+          _initialColumns,
+          _schema,
+          _suggestedRules,
+        });
+
+        // wait 1 sec to work around the bug
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        console.log("created table");
+
+        // we need to write rows to the DB manually, because we can't get access to the
+        // useSetAtom(bulkAddRowsAtom, tableScope) hook from here
+        const batch = writeBatch(firebaseDb);
+        for (const row of cleanedRows) {
+          const rowId = generateId();
+          const path = `${name}/${rowId}`;
+          batch.set(doc(firebaseDb, path), row);
+        }
+
+        // again, committing the batch does not return, but it seems to work
+        // we are not awaiting it
+        /* await */ batch.commit();
+
+        // wait 1 sec to work around the bug
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        // now go to the new table
+        navigate(`${ROUTES.table}/${tableId}`);
       },
     },
     []
